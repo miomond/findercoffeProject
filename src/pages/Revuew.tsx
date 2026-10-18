@@ -12,18 +12,18 @@ import {
   faCouch,
   faFaceGrinBeam,
   faFaceSadTear,
-  faMoon,
   faMugSaucer,
   faPhone,
   faRotateLeft,
   faStar as faStarSolid,
   faStopwatch,
-  faSun,
   faUser,
   faUtensils,
 } from "@fortawesome/free-solid-svg-icons";
 import { faHeart, faLightbulb, faStar as faStarRegular } from "@fortawesome/free-regular-svg-icons";
 import { latestFeedback } from "../feedbackStorage";
+import ThemeToggle, { ROUND_BUTTON } from "../components/ThemeToggle";
+import { DIR, T, type Lang } from "../i18n";
 
 type CategoryKey =
   | "beverages"
@@ -60,6 +60,8 @@ export interface FeedbackPayload {
 }
 
 interface FeedbackFormProps {
+  lang: Lang;
+  onLangChange?: (lang: Lang) => void;
   onSubmit?: (payload: FeedbackPayload) => Promise<void> | void;
   logoSrc?: string;
 }
@@ -167,6 +169,8 @@ const VISIT_OPTIONS: { value: VisitAgain; ar: string; en: string }[] = [
 // sm and up: one row per category, label column sized to its widest one-line name.
 const GRID_COLS = "grid grid-cols-5 sm:grid-cols-[minmax(min-content,1.5fr)_repeat(5,minmax(0,1fr))]";
 const LABEL_CELL = "col-span-5 sm:col-span-1";
+// Every row shares the table's columns, so the name column is as wide as the longest name in all rows.
+const ROW = "col-span-full grid grid-cols-subgrid";
 
 const INPUT_CLASS =
   "mt-2 block h-12 w-full min-w-0 appearance-none rounded-xl border border-line bg-field px-3 text-base text-fg outline-none transition placeholder:text-faint focus:border-brand focus:ring-2 focus:ring-brand/30 aria-[invalid=true]:border-danger/70";
@@ -205,12 +209,14 @@ const DROPS = [
 ];
 
 interface VisitReactionProps {
+  lang: Lang;
   kind: "yes" | "no";
   onClose: () => void;
 }
 
-function VisitReaction({ kind, onClose }: VisitReactionProps) {
+function VisitReaction({ lang, kind, onClose }: VisitReactionProps) {
   const happy = kind === "yes";
+  const t = T[lang];
   return (
     <div
       role="status"
@@ -250,11 +256,9 @@ function VisitReaction({ kind, onClose }: VisitReactionProps) {
           aria-hidden="true"
         />
         <p className="relative mt-5 text-2xl font-extrabold text-fg">
-          {happy ? "شكراً لك! بانتظارك" : "يؤسفنا ذلك"}
+          {happy ? t.reactionYesTitle : t.reactionNoTitle}
         </p>
-        <p lang="en" className="relative mt-1 text-[15px] text-fg-muted">
-          {happy ? "Thank you! We can't wait to see you again" : "We're sorry to hear that. We'll do better"}
-        </p>
+        <p className="relative mt-1 text-[15px] text-fg-muted">{happy ? t.reactionYesText : t.reactionNoText}</p>
       </div>
     </div>
   );
@@ -301,33 +305,29 @@ function LatteArt() {
 
 interface FieldProps {
   icon: IconDefinition;
-  ar: string;
-  en: string;
-  optional?: boolean;
-  error?: { ar: string; en: string } | false;
+  label: string;
+  optional?: string;
+  error?: string | false;
   className?: string;
   children: ReactNode;
 }
 
-function Field({ icon, ar, en, optional, error, className = "", children }: FieldProps) {
+function Field({ icon, label, optional, error, className = "", children }: FieldProps) {
   return (
     <label className={`block ${className}`}>
       <span className="flex items-center gap-2.5">
         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-tile text-brand ring-1 ring-line-strong">
           <Icon icon={icon} className="text-[15px]" />
         </span>
-        <span className="block leading-tight">
-          <span className="block text-[15px] font-bold text-fg">{ar}</span>
-          <span lang="en" className="block text-[13px] text-fg-muted">
-            {en}
-            {optional ? " (optional)" : ""}
-          </span>
+        <span className="text-base font-bold text-fg">
+          {label}
+          {optional && <span className="ms-1.5 text-sm font-normal text-fg-muted">{optional}</span>}
         </span>
       </span>
       {children}
       {error && (
-        <span role="alert" className="mt-1.5 block text-[13px] text-danger-fg">
-          {error.ar} <span lang="en">· {error.en}</span>
+        <span role="alert" className="mt-1.5 block text-sm text-danger-fg">
+          {error}
         </span>
       )}
     </label>
@@ -336,124 +336,54 @@ function Field({ icon, ar, en, optional, error, className = "", children }: Fiel
 
 interface SectionTitleProps {
   icon: ReactNode;
-  ar: string;
-  en: string;
+  title: string;
 }
 
-function SectionTitle({ icon, ar, en }: SectionTitleProps) {
+function SectionTitle({ icon, title }: SectionTitleProps) {
   return (
     <div className="flex items-center gap-3">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand text-on-brand shadow-[0_0_16px_-4px_rgba(250,126,2,0.7)]">
         {icon}
       </span>
-      <div className="leading-tight">
-        <p className="text-base font-bold text-fg sm:text-[17px]">{ar}</p>
-        <p lang="en" className="text-[13px] text-fg-muted">
-          {en}
-        </p>
-      </div>
+      <p className="text-base font-bold leading-snug text-fg sm:text-[17px]">{title}</p>
     </div>
   );
 }
-
-type Theme = "light" | "dark";
-
-const THEME_KEY = "finder-theme";
-const THEME_COLOR: Record<Theme, string> = { dark: "#0B0908", light: "#FBF5EE" };
-
-function readTheme(): Theme {
-  const set = document.documentElement.dataset.theme;
-  if (set === "light" || set === "dark") return set;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(readTheme);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLOR[theme]);
-  }, [theme]);
-
-  const toggle = () => {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    try {
-      localStorage.setItem(THEME_KEY, next);
-    } catch {
-      // Storage blocked; the theme still switches for this visit.
-    }
-  };
-
-  const toLight = theme === "dark";
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={toLight ? "Switch to light mode" : "Switch to dark mode"}
-      title={toLight ? "الوضع الفاتح · Light mode" : "الوضع الداكن · Dark mode"}
-      className="absolute left-3 top-3 z-10 grid h-11 w-11 place-items-center rounded-full border border-line-strong bg-raised text-brand transition hover:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand sm:left-4 sm:top-4"
-    >
-      <Icon icon={toLight ? faSun : faMoon} className="text-lg" />
-    </button>
-  );
-}
-
-const CLOSING: Record<VisitAgain, { ar: string; en: string }> = {
-  yes: { ar: "نتطلع لاستقبالك مجدداً قريباً", en: "We look forward to welcoming you back soon." },
-  maybe: {
-    ar: "نتمنى أن نراك مجدداً، وسنحرص أن تكون زيارتك القادمة أجمل",
-    en: "We hope to see you again, and we'll make your next visit even better.",
-  },
-  no: {
-    ar: "نأسف أن تجربتك لم تكن بالمستوى الذي تستحقه، وسنأخذ ملاحظاتك بكل اهتمام",
-    en: "We're sorry your visit fell short. Your feedback will be taken seriously.",
-  },
-};
 
 interface ThankYouProps {
   name: string;
   visitAgain: VisitAgain;
 }
 
-function ThankYou({ name, visitAgain }: ThankYouProps) {
+function ThankYou({ lang, name, visitAgain }: ThankYouProps & { lang: Lang }) {
+  const t = T[lang];
   const firstName = name.trim().split(/\s+/)[0] ?? "";
-  const closing = CLOSING[visitAgain];
   return (
     <section className="flex flex-col items-center gap-4 px-6 py-16 text-center">
       <span className="grid h-16 w-16 place-items-center rounded-full bg-brand text-on-brand shadow-[0_0_30px_-6px_rgba(250,126,2,0.8)]">
         <Icon icon={faCheck} className="text-3xl" />
       </span>
-      <div className="leading-snug">
-        <p className="text-2xl font-extrabold text-fg sm:text-3xl">
-          سعدنا بزيارتك{firstName && <>، <bdi className="text-brand">{firstName}</bdi></>}
-        </p>
-        <p lang="en" className="mt-1 text-base text-fg-muted">
-          It was a pleasure having you{firstName && <>, <bdi>{firstName}</bdi></>}
-        </p>
-      </div>
-      <div className="max-w-md leading-relaxed">
-        <p className="text-base text-fg-soft">
-          شكراً لمشاركتنا رأيك، فملاحظاتك تساعدنا على تقديم تجربة أفضل في كل زيارة.
-        </p>
-        <p lang="en" className="mt-1 text-[15px] text-fg-muted">
-          Thank you for sharing your feedback. It helps us make every visit better.
-        </p>
-      </div>
-      <div className="mt-2 rounded-2xl border border-line bg-panel px-5 py-3 leading-relaxed">
-        <p className="text-[15px] font-bold text-fg">{closing.ar}</p>
-        <p lang="en" className="text-[13px] text-fg-muted">
-          {closing.en}
-        </p>
-      </div>
-      <p className="mt-2 text-sm font-bold text-brand">
-        فريق finder CAFE <span lang="en" className="font-normal text-fg-muted">· The finder CAFE team</span>
+      <p className="text-2xl font-extrabold leading-snug text-fg sm:text-3xl">
+        {t.greet}
+        {firstName && (
+          <>
+            {t.nameSeparator}
+            <bdi className="text-brand">{firstName}</bdi>
+          </>
+        )}
       </p>
+      <p className="max-w-md text-base leading-relaxed text-fg-soft">{t.thanksBody}</p>
+      <p className="mt-2 rounded-2xl border border-line bg-panel px-5 py-3 text-[15px] font-bold leading-relaxed text-fg">
+        {t.closing[visitAgain]}
+      </p>
+      <p className="mt-2 text-sm font-bold text-brand">{t.team}</p>
     </section>
   );
 }
 
-export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
+export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: FeedbackFormProps) {
+  const t = T[lang];
+  const other: Lang = lang === "ar" ? "en" : "ar";
   const [hoverStar, setHoverStar] = useState(0);
   const [hoverRating, setHoverRating] = useState<{ key: CategoryKey; value: number } | null>(null);
   const [reaction, setReaction] = useState<{ kind: "yes" | "no"; id: number } | null>(null);
@@ -535,8 +465,8 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
 
   return (
     <main
-      dir="rtl"
-      lang="ar"
+      dir={DIR[lang]}
+      lang={lang}
       className="min-h-dvh bg-page bg-[radial-gradient(circle_at_15%_0%,rgba(250,126,2,0.16)_0,transparent_40%),radial-gradient(circle_at_90%_100%,rgba(250,126,2,0.10)_0,transparent_45%)] pb-[max(1.5rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-4 sm:py-12"
       style={{ fontFamily: "'Cairo', sans-serif" }}
     >
@@ -545,21 +475,25 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
         <header className="relative overflow-hidden bg-gradient-to-b from-header to-surface px-5 pb-6 pt-6 sm:px-10 sm:pt-8">
           <div className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-brand/20 blur-3xl" />
           <div className="pointer-events-none absolute -right-8 bottom-0 h-32 w-32 rounded-full bg-brand/10 blur-3xl" />
-          <ThemeToggle />
-          <div className="relative flex flex-col items-center gap-4 sm:flex-row sm:justify-between sm:gap-6">
-            <div className="text-center sm:text-right">
-              <h1 className="text-4xl font-extrabold text-brand md:text-5xl">رأيك يهمنا</h1>
-              <p
-                lang="en"
-                className="mt-1 text-sm font-semibold tracking-[0.2em] text-fg-soft"
-                style={{ fontFamily: "'Fraunces', serif" }}
+          <div className="absolute end-3 top-3 z-10 flex gap-2 sm:end-4 sm:top-4">
+            {onLangChange && (
+              <button
+                type="button"
+                lang={other}
+                onClick={() => onLangChange(other)}
+                aria-label={t.switchLangLabel}
+                title={t.switchLangLabel}
+                className={`${ROUND_BUTTON} text-sm font-extrabold`}
               >
-                YOUR FEEDBACK MATTERS
-              </p>
-              <p className="mt-3 text-base text-fg-soft">ساعدنا نقدم لك تجربة أفضل دائماً</p>
-              <p lang="en" className="text-[13px] text-fg-muted">
-                Help us serve you a better experience always
-              </p>
+                {t.switchLangShort}
+              </button>
+            )}
+            <ThemeToggle lang={lang} />
+          </div>
+          <div className="relative flex flex-col items-center gap-4 sm:flex-row sm:justify-between sm:gap-6">
+            <div className="text-center sm:text-start">
+              <h1 className="text-4xl font-extrabold leading-tight text-brand md:text-5xl">{t.title}</h1>
+              <p className="mt-3 text-base text-fg-soft">{t.subtitle}</p>
             </div>
             <div className="order-first sm:order-none">
               <FinderLogo logoSrc={logoSrc} />
@@ -571,18 +505,17 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
         </header>
 
         {isSubmitSuccessful && thanks ? (
-          <ThankYou name={thanks.name} visitAgain={thanks.visitAgain} />
+          <ThankYou lang={lang} name={thanks.name} visitAgain={thanks.visitAgain} />
         ) : (
           <form onSubmit={handleSubmit(onValid)} noValidate className="space-y-5 px-3 pb-8 sm:space-y-6 sm:px-8">
             <section className="rounded-2xl border border-line bg-panel p-4">
-              <SectionTitle icon={<Icon icon={faAddressCard} />} ar="بياناتك" en="Your details" />
+              <SectionTitle icon={<Icon icon={faAddressCard} />} title={t.details} />
               <div className="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
                 <Field
                   className="sm:col-span-2 md:col-span-1"
                   icon={faUser}
-                  ar="الاسم الكامل"
-                  en="Full name"
-                  error={errors.fullName && { ar: "أدخل اسمك الكامل", en: "Enter your full name" }}
+                  label={t.fullName}
+                  error={errors.fullName && t.fullNameError}
                 >
                   <input
                     type="text"
@@ -596,9 +529,8 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                 </Field>
                 <Field
                   icon={faPhone}
-                  ar="رقم الجوال"
-                  en="Phone number"
-                  error={errors.phone && { ar: "أدخل رقم جوال صحيح", en: "Enter a valid phone number" }}
+                  label={t.phone}
+                  error={errors.phone && t.phoneError}
                 >
                   <input
                     type="tel"
@@ -607,16 +539,15 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                     autoComplete="tel"
                     placeholder="+20 1X XXX XXXX"
                     aria-invalid={Boolean(errors.phone)}
-                    className={`${INPUT_CLASS} text-right`}
+                    className={`${INPUT_CLASS} rtl:text-right`}
                     {...register("phone", { validate: isValidPhone })}
                   />
                 </Field>
                 <Field
                   icon={faCakeCandles}
-                  ar="تاريخ الميلاد"
-                  en="Birthday"
-                  optional
-                  error={errors.birthday && { ar: "تاريخ غير صحيح", en: "Invalid date" }}
+                  label={t.birthday}
+                  optional={t.optional}
+                  error={errors.birthday && t.birthdayError}
                 >
                   <input
                     type="date"
@@ -624,7 +555,7 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                     max={TODAY}
                     autoComplete="bday"
                     aria-invalid={Boolean(errors.birthday)}
-                    className={`${INPUT_CLASS} text-right`}
+                    className={`${INPUT_CLASS} rtl:text-right`}
                     {...register("birthday", { validate: (value) => !value || value <= TODAY })}
                   />
                 </Field>
@@ -632,27 +563,19 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
             </section>
 
             <section className="rounded-2xl border border-line bg-panel p-2 sm:p-3">
-              <div className={`${GRID_COLS} items-end gap-x-1 px-2 pb-3 pt-2 sm:px-3`}>
-                <div className={`${LABEL_CELL} mb-4 leading-tight sm:mb-0`}>
-                  <p className="text-base font-bold text-fg sm:text-[17px]">من فضلك قيم تجربتك معنا</p>
-                  <p lang="en" className="text-[13px] text-fg-muted">
-                    Please rate your experience with us
-                  </p>
-                </div>
+              <div className={`${GRID_COLS} gap-x-1 gap-y-1`}>
+              <div className={`${ROW} mb-2 items-end px-2 pb-1 pt-2 sm:px-3`}>
+                <p className={`${LABEL_CELL} mb-4 text-base font-bold leading-snug text-fg sm:mb-0 sm:text-[17px]`}>
+                  {t.rateTitle}
+                </p>
                 {LEVELS.map((level) => (
                   <div key={level.value} className="flex flex-col items-center gap-1 text-center text-fg-muted">
                     <CupLevel level={Number(level.value)} />
-                    <span className="text-[13px] font-bold leading-tight text-fg-soft">
-                      {level.ar}
-                    </span>
-                    <span lang="en" className="text-xs leading-tight">
-                      {level.en}
-                    </span>
+                    <span className="text-sm font-bold leading-tight text-fg-soft">{level[lang]}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-1">
                 {CATEGORIES.map((category) => {
                   const hasError = Boolean(errors.ratings?.[category.key]);
                   const shown =
@@ -661,9 +584,9 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                     <div
                       key={category.key}
                       role="radiogroup"
-                      aria-label={`${category.ar} - ${category.en}`}
+                      aria-label={category[lang]}
                       onPointerLeave={() => setHoverRating(null)}
-                      className={`${GRID_COLS} items-center gap-x-1 rounded-xl px-2 py-3 transition-colors sm:py-2.5 odd:bg-raised even:bg-surface hover:bg-raised-hover sm:px-3 ${
+                      className={`${ROW} items-center rounded-xl px-2 py-3 transition-colors sm:py-2.5 odd:bg-raised even:bg-surface hover:bg-raised-hover sm:px-3 ${
                         hasError ? "ring-1 ring-danger/60" : ""
                       }`}
                     >
@@ -671,12 +594,7 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-tile text-brand ring-1 ring-line-strong sm:h-8 sm:w-8">
                           {category.icon}
                         </span>
-                        <div className="whitespace-nowrap leading-tight">
-                          <p className="text-[15px] font-bold text-fg">{category.ar}</p>
-                          <p lang="en" className="text-xs text-fg-muted sm:text-[13px]">
-                            {category.en}
-                          </p>
-                        </div>
+                        <p className="whitespace-nowrap text-base font-bold text-fg">{category[lang]}</p>
                       </div>
                       {LEVELS.map((level) => (
                         <label
@@ -691,7 +609,7 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                           <input
                             type="radio"
                             value={level.value}
-                            aria-label={`${category.en} - ${level.en}`}
+                            aria-label={`${category[lang]} - ${level[lang]}`}
                             className="peer sr-only"
                             {...register(`ratings.${category.key}` as const, { required: true })}
                             onClick={() => {
@@ -718,11 +636,7 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
 
             <section className="grid gap-4 sm:grid-cols-2 sm:gap-y-3">
               <div className="rounded-2xl border border-line bg-panel p-4 sm:row-span-2 sm:grid sm:grid-rows-subgrid">
-                <SectionTitle
-                  icon={<Icon icon={faLightbulb} />}
-                  ar="هل لديك أي اقتراحات لتحسين تجربتنا؟"
-                  en="Do you have any suggestions to improve our experience?"
-                />
+                <SectionTitle icon={<Icon icon={faLightbulb} />} title={t.suggestions} />
                 <textarea
                   rows={4}
                   dir="auto"
@@ -731,7 +645,7 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                 />
               </div>
               <div className="rounded-2xl border border-line bg-panel p-4 sm:row-span-2 sm:grid sm:grid-rows-subgrid">
-                <SectionTitle icon={<Icon icon={faHeart} />} ar="ما أكثر شيء أعجبك؟" en="What did you like the most?" />
+                <SectionTitle icon={<Icon icon={faHeart} />} title={t.liked} />
                 <textarea rows={4} dir="auto" className={TEXTAREA_CLASS} {...register("liked", { maxLength: 1000 })} />
               </div>
             </section>
@@ -742,12 +656,8 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                   errors.visitAgain ? "border-danger/60" : "border-line"
                 }`}
               >
-                <SectionTitle
-                  icon={<Icon icon={faRotateLeft} />}
-                  ar="هل ستزورنا مرة أخرى؟"
-                  en="Will you visit us again?"
-                />
-                <div role="radiogroup" aria-label="Will you visit us again?" className="mt-4 grid grid-cols-3 gap-2">
+                <SectionTitle icon={<Icon icon={faRotateLeft} />} title={t.visitAgain} />
+                <div role="radiogroup" aria-label={t.visitAgain} className="mt-4 grid grid-cols-3 gap-2">
                   {VISIT_OPTIONS.map((option) => (
                     <label key={option.value} className="cursor-pointer">
                       <input
@@ -760,12 +670,7 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                         })}
                       />
                       <span className="flex items-center justify-center gap-2 rounded-full border-2 border-line-strong bg-raised min-h-14 px-3 py-2 text-fg transition-all hover:border-brand/70 peer-checked:border-brand peer-checked:bg-brand peer-checked:text-on-brand peer-checked:shadow-[0_0_20px_-6px_rgba(250,126,2,0.8)] peer-focus-visible:ring-2 peer-focus-visible:ring-brand peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface">
-                        <span className="text-center leading-tight">
-                          <span className="block text-base font-bold">{option.ar}</span>
-                          <span lang="en" className="block text-xs opacity-80">
-                            {option.en}
-                          </span>
-                        </span>
+                        <span className="text-base font-bold">{option[lang]}</span>
                       </span>
                     </label>
                   ))}
@@ -777,7 +682,7 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                   errors.overall ? "border-danger/60" : "border-line"
                 }`}
               >
-                <SectionTitle icon={<Icon icon={faStarRegular} />} ar="تقييمك العام" en="Overall Rating" />
+                <SectionTitle icon={<Icon icon={faStarRegular} />} title={t.overall} />
                 <Controller
                   name="overall"
                   control={control}
@@ -785,7 +690,7 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
                   render={({ field }) => (
                     <div
                       role="radiogroup"
-                      aria-label="Overall Rating"
+                      aria-label={t.overall}
                       className="mt-4 flex items-center justify-center gap-1 md:gap-2"
                       onPointerLeave={() => setHoverStar(0)}
                     >
@@ -827,11 +732,8 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
             </section>
 
             {hasErrors && (
-              <p role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-center text-[15px] font-semibold text-danger-fg">
-                من فضلك أكمل الحقول المطلوبة
-                <span lang="en" className="block text-[13px] font-normal">
-                  Please complete the required fields
-                </span>
+              <p role="alert" className="rounded-xl bg-danger/10 px-4 py-3 text-center text-base font-semibold text-danger-fg">
+                {t.required}
               </p>
             )}
 
@@ -843,28 +745,21 @@ export default function FeedbackForm({ onSubmit, logoSrc }: FeedbackFormProps) {
               {isSubmitting ? (
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-on-brand/30 border-t-on-brand" />
               ) : (
-                <span className="text-lg font-bold">إرسال</span>
+                <span className="text-lg font-bold">{t.submit}</span>
               )}
-              <span lang="en" className="text-sm opacity-80">
-                Submit
-              </span>
             </button>
 
             <footer className="flex items-center gap-4 pt-2">
-              <span className="h-px flex-1 bg-gradient-to-l from-transparent to-line-strong" />
-              <div className="text-center leading-tight">
-                <p className="font-bold text-brand">شكراً لوقتك .. نعتز برأيك</p>
-                <p lang="en" className="text-[13px] text-fg-muted">
-                  Thank you for your time. We value your feedback
-                </p>
-              </div>
-              <span className="h-px flex-1 bg-gradient-to-r from-transparent to-line-strong" />
+              {/* Lines fade out towards the page edges in both directions. */}
+              <span className="h-px flex-1 bg-gradient-to-r from-transparent to-line-strong rtl:bg-gradient-to-l" />
+              <p className="text-center font-bold leading-snug text-brand">{t.footer}</p>
+              <span className="h-px flex-1 bg-gradient-to-l from-transparent to-line-strong rtl:bg-gradient-to-r" />
             </footer>
           </form>
         )}
       </div>
 
-      {reaction && <VisitReaction key={reaction.id} kind={reaction.kind} onClose={() => setReaction(null)} />}
+      {reaction && <VisitReaction key={reaction.id} lang={lang} kind={reaction.kind} onClose={() => setReaction(null)} />}
     </main>
   );
 }
