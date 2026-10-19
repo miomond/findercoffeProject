@@ -114,6 +114,20 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /* Every clickable element shows a pointer. Disabled controls keep their own not-allowed cursor. */
+  a[href],
+  button:not(:disabled),
+  [role="button"],
+  [role="radio"],
+  select,
+  summary,
+  label:has(input[type="radio"], input[type="checkbox"]),
+  tr[tabindex],
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="search"]::-webkit-search-cancel-button {
+    cursor: pointer;
+  }
+
   /* English text inside an RTL block: lay it out left-to-right (so "?" lands at the end)
      while keeping the same alignment as the Arabic around it. */
   [dir="rtl"] [lang="en"] {

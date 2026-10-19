@@ -8,6 +8,7 @@ import {
   faBroom,
   faCakeCandles,
   faCheck,
+  faChair,
   faCoins,
   faCouch,
   faFaceGrinBeam,
@@ -25,6 +26,9 @@ import { latestFeedback } from "../feedbackStorage";
 import ThemeToggle, { ROUND_BUTTON } from "../components/ThemeToggle";
 import { DIR, T, type Lang } from "../i18n";
 
+
+
+/// interfaces  /////////////////////////////////////////////////////////////////////////
 type CategoryKey =
   | "beverages"
   | "food"
@@ -41,6 +45,7 @@ interface FeedbackFormValues {
   fullName: string;
   phone: string;
   birthday: string;
+  tableNumber: string;
   ratings: Record<CategoryKey, RatingLevel | "">;
   liked: string;
   suggestions: string;
@@ -52,11 +57,12 @@ export interface FeedbackPayload {
   fullName: string;
   phone: string;
   birthday: string | null;
+  tableNumber: string;
   ratings: Record<CategoryKey, number>;
   liked: string;
   suggestions: string;
   overall: number;
-  visitAgain: VisitAgain;
+  visitAgain: VisitAgain | "";
 }
 
 interface FeedbackFormProps {
@@ -85,6 +91,15 @@ function Icon({ icon, className = "text-[17px]" }: IconProps) {
   return <FontAwesomeIcon icon={icon} className={className} aria-hidden="true" />;
 }
 
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////// /////////////////////////////////////////////////////////////////////////
+
+/// interface components   /////////////////////////////////////////////////////////////////////// /////////////////////////////////////////////////////////////////////////
+
 interface CupLevelProps {
   level: number;
 }
@@ -100,9 +115,16 @@ function CupLevel({ level }: CupLevelProps) {
   );
 }
 
+
+
+
+
+
+
 interface CoffeeBeanProps {
   filled: boolean;
 }
+
 
 function CoffeeBean({ filled }: CoffeeBeanProps) {
   return (
@@ -173,7 +195,7 @@ const LABEL_CELL = "col-span-5 sm:col-span-1";
 const ROW = "col-span-full grid grid-cols-subgrid";
 
 const INPUT_CLASS =
-  "mt-2 block h-12 w-full min-w-0 appearance-none rounded-xl border border-line bg-field px-3 text-base text-fg outline-none transition placeholder:text-faint focus:border-brand focus:ring-2 focus:ring-brand/30 aria-[invalid=true]:border-danger/70";
+  " mt-2 block h-12 w-full min-w-0 appearance-none rounded-xl border border-line bg-field px-3 text-base text-fg outline-none transition placeholder:text-faint focus:border-brand focus:ring-2 focus:ring-brand/30 aria-[invalid=true]:border-danger/70 [&::-webkit-calendar-picker-indicator]:cursor-pointer ";
 
 // Latest allowed birthday (YYYY-MM-DD).
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -222,33 +244,33 @@ function VisitReaction({ lang, kind, onClose }: VisitReactionProps) {
       role="status"
       aria-live="polite"
       onClick={onClose}
-      className="reaction-fade fixed inset-0 z-50 grid place-items-center bg-page/70 px-6 backdrop-blur-sm"
+      className=" reaction-fade fixed inset-0 z-50 grid place-items-center bg-page/70 px-6 backdrop-blur-sm"
     >
       <div className="reaction-pop relative flex w-full max-w-xs flex-col items-center overflow-hidden rounded-3xl border border-line-strong bg-surface px-6 pb-7 pt-10 text-center shadow-[0_24px_60px_-20px_rgba(250,126,2,0.45)]">
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">
           {happy
             ? BUBBLES.map((bubble, i) => (
-                <span
-                  key={i}
-                  className="bubble absolute -bottom-6 rounded-full border border-brand/70 bg-brand/15"
-                  style={
-                    {
-                      left: `${bubble.left}%`,
-                      width: bubble.size,
-                      height: bubble.size,
-                      animationDelay: `${bubble.delay}s`,
-                      "--drift": `${bubble.drift}px`,
-                    } as CSSProperties
-                  }
-                />
-              ))
+              <span
+                key={i}
+                className="bubble absolute -bottom-6 rounded-full border border-brand/70 bg-brand/15"
+                style={
+                  {
+                    left: `${bubble.left}%`,
+                    width: bubble.size,
+                    height: bubble.size,
+                    animationDelay: `${bubble.delay}s`,
+                    "--drift": `${bubble.drift}px`,
+                  } as CSSProperties
+                }
+              />
+            ))
             : DROPS.map((drop, i) => (
-                <span
-                  key={i}
-                  className="drop absolute top-0 h-3 w-1.5 rounded-full bg-faint"
-                  style={{ left: `${drop.left}%`, animationDelay: `${drop.delay}s` }}
-                />
-              ))}
+              <span
+                key={i}
+                className="drop absolute top-0 h-3 w-1.5 rounded-full bg-faint"
+                style={{ left: `${drop.left}%`, animationDelay: `${drop.delay}s` }}
+              />
+            ))}
         </div>
         <FontAwesomeIcon
           icon={happy ? faFaceGrinBeam : faFaceSadTear}
@@ -352,7 +374,7 @@ function SectionTitle({ icon, title }: SectionTitleProps) {
 
 interface ThankYouProps {
   name: string;
-  visitAgain: VisitAgain;
+  visitAgain: VisitAgain | "";
 }
 
 function ThankYou({ lang, name, visitAgain }: ThankYouProps & { lang: Lang }) {
@@ -373,9 +395,11 @@ function ThankYou({ lang, name, visitAgain }: ThankYouProps & { lang: Lang }) {
         )}
       </p>
       <p className="max-w-md text-base leading-relaxed text-fg-soft">{t.thanksBody}</p>
-      <p className="mt-2 rounded-2xl border border-line bg-panel px-5 py-3 text-[15px] font-bold leading-relaxed text-fg">
-        {t.closing[visitAgain]}
-      </p>
+      {visitAgain && (
+        <p className="mt-2 rounded-2xl border border-line bg-panel px-5 py-3 text-[15px] font-bold leading-relaxed text-fg">
+          {t.closing[visitAgain]}
+        </p>
+      )}
       <p className="mt-2 text-sm font-bold text-brand">{t.team}</p>
     </section>
   );
@@ -413,6 +437,7 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
       fullName: "",
       phone: "",
       birthday: "",
+      tableNumber: "",
       ratings: {
         beverages: "",
         food: "",
@@ -434,6 +459,7 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
       fullName: values.fullName.trim(),
       phone: values.phone.trim(),
       birthday: values.birthday || null,
+      tableNumber: values.tableNumber.trim(),
       ratings: {
         beverages: Number(values.ratings.beverages),
         food: Number(values.ratings.food),
@@ -446,7 +472,7 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
       liked: values.liked.trim(),
       suggestions: values.suggestions.trim(),
       overall: values.overall,
-      visitAgain: values.visitAgain as VisitAgain,
+      visitAgain: values.visitAgain,
     };
     if (onSubmit) {
       await onSubmit(payload);
@@ -510,9 +536,8 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
           <form onSubmit={handleSubmit(onValid)} noValidate className="space-y-5 px-3 pb-8 sm:space-y-6 sm:px-8">
             <section className="rounded-2xl border border-line bg-panel p-4">
               <SectionTitle icon={<Icon icon={faAddressCard} />} title={t.details} />
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
                 <Field
-                  className="sm:col-span-2 md:col-span-1"
                   icon={faUser}
                   label={t.fullName}
                   error={errors.fullName && t.fullNameError}
@@ -523,8 +548,8 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
                     autoComplete="name"
                     maxLength={100}
                     aria-invalid={Boolean(errors.fullName)}
-                    className={INPUT_CLASS}
-                    {...register("fullName", { validate: (value) => value.trim().length >= 2 })}
+                    className={`${INPUT_CLASS}`}
+                    {...register("fullName", { validate: (value) => !value.trim() || value.trim().length >= 2 })}
                   />
                 </Field>
                 <Field
@@ -540,7 +565,7 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
                     placeholder="+20 1X XXX XXXX"
                     aria-invalid={Boolean(errors.phone)}
                     className={`${INPUT_CLASS} rtl:text-right`}
-                    {...register("phone", { validate: isValidPhone })}
+                    {...register("phone", { validate: (value) => !value.trim() || isValidPhone(value) })}
                   />
                 </Field>
                 <Field
@@ -559,22 +584,37 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
                     {...register("birthday", { validate: (value) => !value || value <= TODAY })}
                   />
                 </Field>
+                <Field
+                  icon={faChair}
+                  label={t.tableNumber}
+                  error={errors.tableNumber && t.tableNumberError}
+                >
+                  <input
+                    type="text"
+                    dir="ltr"
+                    inputMode="numeric"
+                    maxLength={4}
+                    aria-invalid={Boolean(errors.tableNumber)}
+                    className={`${INPUT_CLASS} rtl:text-right`}
+                    {...register("tableNumber", { validate: (value) => !value.trim() || /^\d{1,4}$/.test(value.trim()) })}
+                  />
+                </Field>
               </div>
             </section>
 
             <section className="rounded-2xl border border-line bg-panel p-2 sm:p-3">
               <div className={`${GRID_COLS} gap-x-1 gap-y-1`}>
-              <div className={`${ROW} mb-2 items-end px-2 pb-1 pt-2 sm:px-3`}>
-                <p className={`${LABEL_CELL} mb-4 text-base font-bold leading-snug text-fg sm:mb-0 sm:text-[17px]`}>
-                  {t.rateTitle}
-                </p>
-                {LEVELS.map((level) => (
-                  <div key={level.value} className="flex flex-col items-center gap-1 text-center text-fg-muted">
-                    <CupLevel level={Number(level.value)} />
-                    <span className="text-sm font-bold leading-tight text-fg-soft">{level[lang]}</span>
-                  </div>
-                ))}
-              </div>
+                <div className={`${ROW} mb-2 items-end px-2 pb-1 pt-2 sm:px-3`}>
+                  <p className={`${LABEL_CELL} mb-4 text-base font-bold leading-snug text-fg sm:mb-0 sm:text-[17px]`}>
+                    {t.rateTitle}
+                  </p>
+                  {LEVELS.map((level) => (
+                    <div key={level.value} className="flex flex-col items-center gap-1 text-center text-fg-muted">
+                      <CupLevel level={Number(level.value)} />
+                      <span className="text-sm font-bold leading-tight text-fg-soft">{level[lang]}</span>
+                    </div>
+                  ))}
+                </div>
 
                 {CATEGORIES.map((category) => {
                   const hasError = Boolean(errors.ratings?.[category.key]);
@@ -586,9 +626,8 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
                       role="radiogroup"
                       aria-label={category[lang]}
                       onPointerLeave={() => setHoverRating(null)}
-                      className={`${ROW} items-center rounded-xl px-2 py-3 transition-colors sm:py-2.5 odd:bg-raised even:bg-surface hover:bg-raised-hover sm:px-3 ${
-                        hasError ? "ring-1 ring-danger/60" : ""
-                      }`}
+                      className={`${ROW} items-center rounded-xl px-2 py-3 transition-colors sm:py-2.5 odd:bg-raised even:bg-surface hover:bg-raised-hover sm:px-3 ${hasError ? "ring-1 ring-danger/60" : ""
+                        }`}
                     >
                       <div className={`${LABEL_CELL} mb-1 flex items-center gap-2.5 sm:mb-0`}>
                         <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-tile text-brand ring-1 ring-line-strong sm:h-8 sm:w-8">
@@ -611,7 +650,7 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
                             value={level.value}
                             aria-label={`${category[lang]} - ${level[lang]}`}
                             className="peer sr-only"
-                            {...register(`ratings.${category.key}` as const, { required: true })}
+                            {...register(`ratings.${category.key}` as const, {})}
                             onClick={() => {
                               // Clicking the selected bean again clears the row (radios can't do this on their own).
                               if (ratings[category.key] === level.value) {
@@ -652,9 +691,8 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
 
             <section className="grid gap-4 sm:grid-cols-2">
               <div
-                className={`rounded-2xl border bg-panel p-4 ${
-                  errors.visitAgain ? "border-danger/60" : "border-line"
-                }`}
+                className={`rounded-2xl border bg-panel p-4 ${errors.visitAgain ? "border-danger/60" : "border-line"
+                  }`}
               >
                 <SectionTitle icon={<Icon icon={faRotateLeft} />} title={t.visitAgain} />
                 <div role="radiogroup" aria-label={t.visitAgain} className="mt-4 grid grid-cols-3 gap-2">
@@ -665,7 +703,6 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
                         value={option.value}
                         className="peer sr-only"
                         {...register("visitAgain", {
-                          required: true,
                           onChange: (event) => showReaction(event.target.value),
                         })}
                       />
@@ -678,15 +715,13 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
               </div>
 
               <div
-                className={`rounded-2xl border bg-panel p-4 ${
-                  errors.overall ? "border-danger/60" : "border-line"
-                }`}
+                className={`rounded-2xl border bg-panel p-4 ${errors.overall ? "border-danger/60" : "border-line"
+                  }`}
               >
                 <SectionTitle icon={<Icon icon={faStarRegular} />} title={t.overall} />
                 <Controller
                   name="overall"
                   control={control}
-                  rules={{ validate: (value) => value > 0 }}
                   render={({ field }) => (
                     <div
                       role="radiogroup"
@@ -716,7 +751,7 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
                                 field.onChange(star);
                               }
                             }}
-                            className="rounded-full p-1 outline-none transition-transform hover:scale-110 focus-visible:ring-2 focus-visible:ring-brand"
+                            className="rounded-full p-1 outline-none transition-transform hover:scale-110 hover:cursor-pointer focus-visible:ring-2 focus-visible:ring-brand"
                           >
                             <Icon
                               icon={active ? faStarSolid : faStarRegular}
@@ -740,7 +775,7 @@ export default function FeedbackForm({ lang, onLangChange, onSubmit, logoSrc }: 
             <button
               type="submit"
               disabled={isSubmitting}
-              className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-l from-brand to-brand-deep px-6 py-4 text-on-brand shadow-[0_12px_28px_-12px_rgba(250,126,2,0.9)] transition-all hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-12px_rgba(250,126,2,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-70"
+              className="group flex w-full items-center justify-center gap-3 rounded-2xl bg-gradient-to-l from-brand to-brand-deep px-6 py-4 text-on-brand shadow-[0_12px_28px_-12px_rgba(250,126,2,0.9)] transition-all hover:-translate-y-0.5 hover:cursor-pointer hover:shadow-[0_16px_32px_-12px_rgba(250,126,2,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSubmitting ? (
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-on-brand/30 border-t-on-brand" />
